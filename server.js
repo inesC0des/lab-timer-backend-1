@@ -7,15 +7,17 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
-// Single global state for your hidden webpage
 let timerState = { duration: 0, endTime: null, isRunning: false };
 
+// NEW: Helper function that sends the Server's true clock time
+function broadcastState() {
+  io.emit('timer_state', { ...timerState, serverTime: Date.now() });
+}
+
 io.on('connection', (socket) => {
-  // 1. Send the current timer and user count to the new person
-  socket.emit('timer_state', timerState);
+  socket.emit('timer_state', { ...timerState, serverTime: Date.now() });
   io.emit('user_count', io.engine.clientsCount);
 
-  // 2. Someone clicks a timer button
   socket.on('start_timer', (minutes) => {
     const durationMs = minutes * 60 * 1000;
     timerState = {
@@ -23,16 +25,14 @@ io.on('connection', (socket) => {
       endTime: Date.now() + durationMs,
       isRunning: true
     };
-    io.emit('timer_state', timerState); // Update everyone
+    broadcastState();
   });
 
-  // 3. Someone clicks reset
   socket.on('stop_timer', () => {
     timerState = { duration: 0, endTime: null, isRunning: false };
-    io.emit('timer_state', timerState);
+    broadcastState();
   });
 
-  // 4. Someone closes the tab (update user count)
   socket.on('disconnect', () => {
     io.emit('user_count', io.engine.clientsCount);
   });
