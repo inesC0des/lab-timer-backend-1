@@ -9,17 +9,14 @@ const io = new Server(server, { cors: { origin: '*' } });
 let timerState = { duration: 0, endTime: null, isRunning: false };
 
 function broadcastState() {
-  io.emit('timer_state', { ...timerState });
+  // Send the state PLUS the server's exact current time
+  io.emit('timer_state', { ...timerState, serverTime: Date.now() });
 }
 
 io.on('connection', (socket) => {
-  socket.emit('timer_state', { ...timerState });
+  // Send current state to newly connected users
+  socket.emit('timer_state', { ...timerState, serverTime: Date.now() });
   io.emit('user_count', io.engine.clientsCount);
-
-  // --- NEW: The Ping/Pong time synchronizer ---
-  socket.on('request_ping', (clientTime) => {
-    socket.emit('response_pong', { clientTime: clientTime, serverTime: Date.now() });
-  });
 
   socket.on('start_timer', (minutes) => {
     const durationMs = minutes * 60 * 1000;
